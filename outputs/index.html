@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>catto chess</title>
+  <style>
+    :root { --ink:#233129; --muted:#6b796f; --cream:#f5f1e7; --panel:#fffdf8; --sage:#a8c5a2; --deep:#355243; --gold:#e6b85c; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; background: radial-gradient(circle at 20% 10%, #f9f7ee, transparent 34%), #edf1e8; }
+    header { position:fixed; top:0; right:0; padding:22px 28px; z-index:2; }
+    header h1 { margin:0; font-size:15px; letter-spacing:.12em; text-transform:lowercase; font-weight:800; color:var(--deep); }
+    main { width:min(1200px, 100%); margin:0 auto; padding:58px 24px 32px; display:grid; grid-template-columns:minmax(0, 700px) 280px; gap:34px; align-items:center; min-height:100vh; }
+    .game-area { display:flex; justify-content:center; }
+    .board-shell { width:min(700px, 90vw); aspect-ratio:1; padding:13px; border-radius:22px; background:#d6cba7; box-shadow:0 22px 45px #27453224, inset 0 0 0 1px #ffffff80; }
+    #board { width:100%; height:100%; display:grid; grid-template-columns:repeat(8, 1fr); grid-template-rows:repeat(8, 1fr); border-radius:12px; overflow:hidden; background:#779769; }
+    .square { position:relative; display:grid; place-items:center; min-width:0; cursor:pointer; transition:filter .15s ease; }
+    .square.light { background-color:#a9c896; background-image:radial-gradient(#ffffff22 1px,transparent 1.5px), linear-gradient(135deg,#ffffff12,#00000009); background-size:12px 12px,100% 100%; }
+    .square.dark { background-color:#739465; background-image:radial-gradient(#ffffff18 1px,transparent 1.5px), linear-gradient(135deg,#ffffff0a,#00000012); background-size:12px 12px,100% 100%; }
+    .square:hover { filter:brightness(1.08); }
+    .square.selected { outline:4px solid #f3c96c; outline-offset:-4px; z-index:1; }
+    .square.king-danger { outline:5px solid #e84545; outline-offset:-5px; z-index:2; animation:kingPulse .55s ease-in-out infinite alternate; }
+    .square.move::after { content:""; width:24%; height:24%; border-radius:50%; background:#f4d787cc; box-shadow:0 0 0 5px #ffffff30; position:absolute; }
+    .square.capture::after { content:""; position:absolute; inset:9%; border:4px solid #f4d787cc; border-radius:10px; }
+    .piece { width:86%; height:86%; filter:drop-shadow(0 4px 2px #23312942); user-select:none; pointer-events:none; }
+    .piece.white { filter:drop-shadow(0 4px 2px #23312942) drop-shadow(0 0 0 #fff); }
+    .danger-flash { animation:dangerFlash .7s ease-in-out 2; }
+    @keyframes dangerFlash { 0%,100% { background-color:transparent; } 35%,70% { background-color:#e8454530; } }
+    @keyframes kingPulse { from { box-shadow:inset 0 0 0 0 #e84545aa; } to { box-shadow:inset 0 0 0 10px #e8454544; } }
+    .status { margin-top:12px; text-align:center; font-size:13px; color:var(--muted); min-height:20px; }
+    .side { padding:8px 0; }
+    .eyebrow { color:#6c8f71; font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; }
+    h2 { margin:8px 0 12px; font-size:27px; line-height:1.1; letter-spacing:-.04em; }
+    p { margin:0; color:var(--muted); font-size:14px; line-height:1.55; }
+    .card { margin-top:22px; padding:18px; border:1px solid #dfe7da; border-radius:16px; background:#ffffffa6; }
+    .card h3 { margin:0 0 12px; font-size:12px; text-transform:uppercase; letter-spacing:.12em; color:var(--deep); }
+    .difficulty { display:flex; gap:6px; }
+    button { border:0; border-radius:10px; padding:10px 12px; font:inherit; font-size:12px; font-weight:700; color:var(--deep); background:#edf3e9; cursor:pointer; }
+    button:hover { background:#dfeedd; }
+    button.active { color:#fffdf6; background:var(--deep); }
+    .primary { width:100%; margin-top:16px; padding:12px; color:#fffdf6; background:#3d654c; }
+    .primary:hover { background:#2e533d; }
+    .stats { display:flex; justify-content:space-between; align-items:baseline; border-top:1px solid #dfe7da; margin-top:18px; padding-top:15px; }
+    .stats strong { font-size:25px; color:var(--deep); }
+    .tip { margin-top:16px; font-size:12px; }
+    .music-card { margin-top:16px; overflow:hidden; border:1px solid #dfe7da; border-radius:16px; background:#18251d; color:#fff; }
+    .music-card .music-copy { padding:13px 15px 10px; }
+    .music-card .music-label { color:#a9c896; font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .music-card strong { display:block; margin-top:4px; font-size:13px; }
+    .music-card iframe { display:block; width:100%; height:80px; border:0; }
+    .result { display:none; margin-top:14px; padding:12px; border-radius:12px; background:#fff5d9; color:#765817; font-size:13px; font-weight:700; text-align:center; }
+    @media (max-width:850px) { main { grid-template-columns:1fr; padding-top:68px; gap:8px; } .side { max-width:700px; width:90vw; margin:0 auto; } header { padding:18px; } }
+  </style>
+</head>
+<body>
+  <header><h1>catto chess</h1></header>
+  <main>
+    <section class="game-area">
+      <div>
+        <div class="board-shell"><div id="board" aria-label="Chess board"></div></div>
+        <div id="status" class="status">Your turn · white cats move first</div>
+      </div>
+    </section>
+    <aside class="side">
+      <div class="eyebrow">a tiny game of whiskers & wits</div>
+      <h2>Outsmart the<br>neighborhood.</h2>
+      <p>Move your white cats across the meadow and capture the black king to win.</p>
+      <div class="card">
+        <h3>Choose your rival</h3>
+        <div class="difficulty" role="group" aria-label="Difficulty">
+          <button data-level="easy" class="active">Easy</button><button data-level="medium">Medium</button><button data-level="hard">Hard</button>
+        </div>
+        <button id="restart" class="primary">↻ New game</button>
+        <div id="result" class="result"></div>
+        <div class="stats"><span>Win streak</span><strong id="streak">0</strong></div>
+      </div>
+      <div class="music-card">
+        <div class="music-copy"><div class="music-label">Play while you play</div><strong>Kwik Flip · 90´s or 20´s cartoons</strong></div>
+        <iframe src="https://open.spotify.com/embed/track/3Wj2jT368D4K9HK5oZxvP4?utm_source=generator&theme=0" title="Kwik Flip on Spotify" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </div>
+      <p class="tip">Click a cat, then a highlighted square. Captures make a tiny cat sound. Pawns reaching the far side become queens.</p>
+    </aside>
+  </main>
+  <script>
+    const boardEl = document.querySelector('#board'), statusEl = document.querySelector('#status'), resultEl = document.querySelector('#result'), streakEl = document.querySelector('#streak');
+    let level='easy', selected=null, gameOver=false, thinking=false, streak=Number(localStorage.getItem('cattoStreak')||0);
+    streakEl.textContent=streak;
+    const files=['a','b','c','d','e','f','g','h'];
+    let state, lastDanger='';
+    const palette={white:'#fffaf0', black:'#2e3931'};
+    const types={ king:'maine coon', queen:'black cat', rook:'calico', bishop:'siamese', knight:'tabby', pawn:'kitten' };
+    function catSvg(type,color){ const fill=palette[color], ink=color==='white'?'#506052':'#d8e0d1', nose=color==='white'?'#d58e86':'#e3a3a1'; const marks={king:'K',queen:'Q',rook:'R',bishop:'B',knight:'N',pawn:'P'}; const accents=type==='calico'?'<path d="M24 15q8-7 16 0l-5 7-11-2z" fill="#d78f64"/><path d="M49 14q7 1 8 9l-9 3-4-8z" fill="#d78f64"/>':''; const stripe=type==='tabby'||type==='knight'?'<path d="M24 23l-3 8m10-9l-2 9m12-9l2 9m8-8l3 7" stroke="#9b8b68" stroke-width="3" stroke-linecap="round"/>':''; const siam=type==='siamese'||type==='bishop'?'<path d="M22 17l7 8H20zm35 0l-7 8h9z" fill="#7b6e63"/>':''; const crown=type==='king'?'<path d="M27 12v-5m9 5V5m9 7V7" stroke="#e2b65e" stroke-width="3" stroke-linecap="round"/>':''; const queen=type==='queen'?'<circle cx="27" cy="12" r="3" fill="#e2b65e"/><circle cx="40" cy="8" r="3" fill="#e2b65e"/><circle cx="53" cy="12" r="3" fill="#e2b65e"/>':''; const pawn=type==='pawn'?'<circle cx="40" cy="18" r="8" fill="#e9c77c"/>':''; return `<svg class="piece ${color} type-${type}" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-label="${color} ${type}"><path d="M18 69h44l-4-8H22z" fill="#d0ad64"/><path d="M26 62q2-8 6-13-14-5-12-17 1-10 9-15l-4-9 11 5q4-3 8-3t8 3l11-5-4 9q8 5 9 15 2 12-12 17 4 5 6 13z" fill="${fill}" stroke="#39483d" stroke-width="2"/><path d="M25 24q-4 4-3 10m33-10q4 4 3 10" fill="none" stroke="${ink}" stroke-width="3" stroke-linecap="round"/>${accents}${siam}${stripe}${crown}${queen}${pawn}<circle cx="32" cy="37" r="3" fill="#39483d"/><circle cx="48" cy="37" r="3" fill="#39483d"/><path d="M37 44q3 3 6 0" fill="none" stroke="${nose}" stroke-width="3" stroke-linecap="round"/><path d="M33 45l-12 1m12 3l-11 4m27-8l12 1m-12 3l11 4" stroke="#819184" stroke-width="1.5"/><text x="40" y="65" text-anchor="middle" font-size="10" font-weight="900" fill="#39483d">${marks[type]}</text></svg>`; }
+    function initial(){ const s=Array.from({length:8},()=>Array(8).fill(null)); const back=['rook','knight','bishop','queen','king','bishop','knight','rook']; for(let x=0;x<8;x++){s[0][x]={type:back[x],color:'black'};s[1][x]={type:'pawn',color:'black'};s[6][x]={type:'pawn',color:'white'};s[7][x]={type:back[x],color:'white'};} return s; }
+    function render(){ boardEl.innerHTML=''; for(let y=0;y<8;y++)for(let x=0;x<8;x++){const el=document.createElement('div'); el.className=`square ${(x+y)%2?'dark':'light'}`; el.dataset.x=x;el.dataset.y=y; const p=state[y][x]; if(p)el.innerHTML=catSvg(p.type,p.color); if(selected){const moves=movesFor(selected.x,selected.y); if(moves.some(m=>m.x===x&&m.y===y))el.classList.add(p?'capture':'move');} if(selected?.x===x&&selected?.y===y)el.classList.add('selected'); if(p?.type==='king'&&isKingDanger(p.color))el.classList.add('king-danger'); el.onclick=()=>clickSquare(x,y); boardEl.appendChild(el); } const dangerKey=['white','black'].filter(isKingDanger).join(','); if(dangerKey&&dangerKey!==lastDanger){document.body.classList.remove('danger-flash');void document.body.offsetWidth;document.body.classList.add('danger-flash');setTimeout(()=>document.body.classList.remove('danger-flash'),1500);} lastDanger=dangerKey; }
+    function inside(x,y){return x>=0&&x<8&&y>=0&&y<8;}
+    function movesFor(x,y){const p=state[y][x]; if(!p)return[]; const out=[]; const add=(tx,ty)=>{if(!inside(tx,ty))return false; if(!state[ty][tx]){out.push({x:tx,y:ty});return true;} if(state[ty][tx].color!==p.color)out.push({x:tx,y:ty});return false;};
+      if(p.type==='pawn'){const d=p.color==='white'?-1:1; if(inside(x,y+d)&&!state[y+d][x]){out.push({x,y:y+d});if((p.color==='white'&&y===6||p.color==='black'&&y===1)&&!state[y+2*d][x])out.push({x,y:y+2*d});} for(const dx of[-1,1])if(inside(x+dx,y+d)&&state[y+d][x+dx]?.color!==p.color&&state[y+d][x+dx])out.push({x:x+dx,y:y+d});}
+      if(p.type==='knight')for(const [dx,dy] of [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]])add(x+dx,y+dy);
+      if(p.type==='king')for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)if(dx||dy)add(x+dx,y+dy);
+      const dirs=[]; if(['rook','queen'].includes(p.type))dirs.push([1,0],[-1,0],[0,1],[0,-1]); if(['bishop','queen'].includes(p.type))dirs.push([1,1],[-1,1],[1,-1],[-1,-1]); for(const [dx,dy] of dirs){let tx=x+dx,ty=y+dy;while(add(tx,ty)){tx+=dx;ty+=dy;}}
+      return out;
+    }
+    function allMoves(color){const arr=[];for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(state[y][x]?.color===color)movesFor(x,y).forEach(m=>arr.push({from:{x,y},to:m}));return arr;}
+    function clickSquare(x,y){if(gameOver||thinking)return; const p=state[y][x]; if(selected){const valid=movesFor(selected.x,selected.y).find(m=>m.x===x&&m.y===y); if(valid){move(selected,{x,y}); selected=null; render(); if(!gameOver){if(checkmate('black'))finish(true,'CHECKMATE — you win!');else{thinking=true; statusEl.textContent=isKingDanger('black')?'⚠ Black king is in danger!':'Black cats are thinking…';setTimeout(botTurn,520);}} return;} selected=null;} if(p?.color==='white')selected={x,y}; render(); }
+    function move(from,to){const p=state[from.y][from.x], captured=state[to.y][to.x]; state[to.y][to.x]=p;state[from.y][from.x]=null;if(p.type==='pawn'&&(to.y===0||to.y===7))p.type='queen'; sound(captured?'capture':'move'); if(captured?.type==='king')finish(p.color==='white');}
+    function botTurn(){if(gameOver){thinking=false;return;} const moves=allMoves('black'); if(!moves.length){finish(true,isKingDanger('black')?'CHECKMATE — you win!':'You win!');return;} let chosen; if(level==='easy')chosen=moves[Math.floor(Math.random()*moves.length)]; else {const captures=moves.filter(m=>state[m.to.y][m.to.x]); if(level==='hard'&&captures.length)chosen=captures.sort((a,b)=>value(state[b.to.y][b.to.x])-value(state[a.to.y][a.to.x]))[0]; else chosen=(captures[0]||moves[Math.floor(Math.random()*moves.length)]);} move(chosen.from,chosen.to);thinking=false;if(!gameOver){render();if(checkmate('white'))finish(false,'CHECKMATE — your king is trapped.');else statusEl.textContent=isKingDanger('white')?'⚠ YOUR KING IS IN DANGER!':'Your turn · white cats move';}}
+    function value(p){return {pawn:1,knight:3,bishop:3,rook:5,queen:9,king:99}[p.type]||0;}
+    function kingPosition(color){for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(state[y][x]?.type==='king'&&state[y][x].color===color)return{x,y};return null;}
+    function isKingDanger(color){const king=kingPosition(color);if(!king)return false;return allMoves(color==='white'?'black':'white').some(m=>m.to.x===king.x&&m.to.y===king.y);}
+    function checkmate(color){return isKingDanger(color)&&allMoves(color).length===0;}
+    function finish(playerWon,message){gameOver=true;thinking=false; if(playerWon){streak++;resultEl.textContent=message||'You win! The cats are purring.';statusEl.textContent='Victory · new game?';sound('win');}else{streak=0;resultEl.textContent=message||'The black cats win this round.';statusEl.textContent='Game over · new game?';sound('lose');}localStorage.setItem('cattoStreak',streak);streakEl.textContent=streak;resultEl.style.display='block';render();}
+    function sound(kind){const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const a=new C();a.resume();const o=a.createOscillator(),o2=a.createOscillator(),g=a.createGain();o.type='sine';o2.type='triangle';const now=a.currentTime;const start=kind==='win'?620:kind==='lose'?180:kind==='capture'?440:520; o.frequency.setValueAtTime(start,now);o.frequency.exponentialRampToValueAtTime(start*1.45,now+.08);o.frequency.exponentialRampToValueAtTime(start*.78,now+.22);o2.frequency.setValueAtTime(start*.5,now);o2.frequency.exponentialRampToValueAtTime(start*.8,now+.16);g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(kind==='move'?.16:.2,now+.015);g.gain.exponentialRampToValueAtTime(.0001,now+.28);o.connect(g);o2.connect(g);g.connect(a.destination);o.start(now);o2.start(now);o.stop(now+.3);o2.stop(now+.3);}
+    document.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>{level=b.dataset.level;document.querySelectorAll('[data-level]').forEach(x=>x.classList.toggle('active',x===b));newGame();});
+    document.querySelector('#restart').onclick=newGame;
+    function newGame(){state=initial();selected=null;gameOver=false;thinking=false;lastDanger='';document.body.classList.remove('danger-flash');resultEl.style.display='none';statusEl.textContent='Your turn · white cats move first';render();}
+    newGame();
+  </script>
+</body>
+</html>
